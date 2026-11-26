@@ -6,15 +6,29 @@ const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
 const app = express();
-app.use(cors());
+
+// Middleware CORS & JSON Parser (cukup sekali saja)
+app.use(
+  cors({
+    origin: "*", // Nanti bisa diarahkan ke URL frontend SimOS
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
+// Koneksi Pool MySQL
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT || 3306,
+  port: Number(process.env.DB_PORT) || 3306,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  // Aktifkan SSL jika database cloud (seperti TiDB Cloud / Aiven) mensyaratkannya:
+  // ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
 });
 
 async function getUserIdByUsername(username) {
@@ -24,6 +38,14 @@ async function getUserIdByUsername(username) {
   ]);
   return rows.length > 0 ? rows[0].id : null;
 }
+
+// Endpoint pengecekan status server
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "Backend SimOS berjalan dengan baik!",
+  });
+});
 
 // ==================== AUTH ====================
 
@@ -88,7 +110,7 @@ app.get("/api/history/:username", async (req, res) => {
        FROM quiz_history
        WHERE user_id = ?
        ORDER BY created_at DESC`,
-      [userId],
+      [userId]
     );
 
     const [simRows] = await pool.query(
@@ -96,7 +118,7 @@ app.get("/api/history/:username", async (req, res) => {
        FROM simulator_history
        WHERE user_id = ?
        ORDER BY created_at DESC`,
-      [userId],
+      [userId]
     );
 
     const quizHistory = quizRows.map((row) => ({
@@ -172,7 +194,7 @@ app.post("/api/quiz-history", async (req, res) => {
         safeTotal,
         safeFinalScore,
         date,
-      ],
+      ]
     );
 
     res.status(201).json({
@@ -241,7 +263,7 @@ app.post("/api/simulator-history", async (req, res) => {
       `INSERT INTO simulator_history
        (id, user_id, type, algorithm, summary, is_safe_optimal, date)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [recordId, userId, type, algorithm, summary, safeFlag ? 1 : 0, date],
+      [recordId, userId, type, algorithm, summary, safeFlag ? 1 : 0, date]
     );
 
     res.status(201).json({
@@ -290,37 +312,12 @@ app.delete("/api/simulator-history/:id", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || process.env.POER || 3001;
-app.listen(PORT, () => {
-  console.log(`Server API berjalan di http://localhost:${PORT}`);
-});
-
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
-
-const app = express();
-
-// 1. Izinkan CORS (sementara pakai '*' dulu saat testing, nanti diganti URL SimOS)
-app.use(cors({
-  origin: '*', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  credentials: true
-}));
-
-app.use(express.json());
-
-// ... (route API kamu ada di sini) ...
-
-// 2. Endpoint tes untuk memastikan backend hidup di Vercel
-app.get('/', (req, res) => {
-  res.json({ status: 'OK', message: 'Backend SimOS berjalan di Vercel!' });
-});
-
-// 3. Jalankan listen hanya saat di lokal, dan export app untuk Vercel
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// Jalankan listen jika bukan di environment Vercel serverless
+const PORT = process.env.PORT || 3001;
+if (!process.env.VERCEL) {
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server API berjalan di port ${PORT}`);
+  });
 }
 
 module.exports = app;
