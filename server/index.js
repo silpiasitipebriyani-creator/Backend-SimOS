@@ -294,3 +294,33 @@ const PORT = process.env.PORT || process.env.POER || 3001;
 app.listen(PORT, () => {
   console.log(`Server API berjalan di http://localhost:${PORT}`);
 });
+
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+
+// 1. Izinkan CORS (sementara pakai '*' dulu saat testing, nanti diganti URL SimOS)
+app.use(cors({
+  origin: '*', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+
+app.use(express.json());
+
+// ... (route API kamu ada di sini) ...
+
+// 2. Endpoint tes untuk memastikan backend hidup di Vercel
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'Backend SimOS berjalan di Vercel!' });
+});
+
+// 3. Jalankan listen hanya saat di lokal, dan export app untuk Vercel
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+}
+
+module.exports = app;
