@@ -63,11 +63,7 @@ app.post("/api/register", async (req, res) => {
     if (error.code === "ER_DUP_ENTRY") {
       res.status(400).json({ error: "Username sudah digunakan" });
     } else {
-      res.status(500).json({
-        error: "Gagal melakukan registrasi",
-        code: error.code || null,
-        detail: error.sqlMessage || error.message || null,
-      });
+      res.status(500).json({ error: "Gagal melakukan registrasi" });
     }
   }
 });
