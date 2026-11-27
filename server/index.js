@@ -59,10 +59,15 @@ app.post("/api/register", async (req, res) => {
     ]);
     res.status(201).json({ message: "Registrasi berhasil" });
   } catch (error) {
+    console.error("Error register:", error);
     if (error.code === "ER_DUP_ENTRY") {
       res.status(400).json({ error: "Username sudah digunakan" });
     } else {
-      res.status(500).json({ error: "Gagal melakukan registrasi" });
+      res.status(500).json({
+        error: "Gagal melakukan registrasi",
+        code: error.code || null,
+        detail: error.sqlMessage || error.message || null,
+      });
     }
   }
 });
